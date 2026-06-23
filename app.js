@@ -46,12 +46,28 @@
   // Airport dataset (loaded from airports.js). Guard in case it's missing.
   const AIRPORT_DB = (typeof AIRPORTS !== "undefined") ? AIRPORTS : {};
 
-  // Reverse index: ICAO code -> IATA key, for 4-letter lookups.
-  const BY_ICAO = Object.create(null);
-  for (const iata of Object.keys(AIRPORT_DB)) {
-    const icao = AIRPORT_DB[iata].icao;
-    if (icao) BY_ICAO[icao] = iata;
+  // Normalize a city string for lookup: strip diacritics, lowercase, collapse
+  // whitespace. So "São Paulo" and "sao  paulo" both key to "sao paulo".
+  function normCity(s) {
+    return s.normalize("NFD").replace(/[̀-ͯ]/g, "")
+            .toLowerCase().trim().replace(/\s+/g, " ");
   }
+
+  // Indexes built from the dataset:
+  //   BY_ICAO    : ICAO code -> IATA key (4-letter lookups)
+  //   CITY_INDEX : normalized city -> IATA key of that city's prime airport
+  const BY_ICAO = Object.create(null);
+  const CITY_INDEX = Object.create(null);
+  for (const iata of Object.keys(AIRPORT_DB)) {
+    const a = AIRPORT_DB[iata];
+    if (a.icao) BY_ICAO[a.icao] = iata;
+    if (a.city) {
+      const key = normCity(a.city);
+      // A `primary` airport always wins its city; otherwise first one seen.
+      if (a.primary || !(key in CITY_INDEX)) CITY_INDEX[key] = iata;
+    }
+  }
+  const CITY_KEYS = Object.keys(CITY_INDEX);
 
   // Handle for the live countdown timer so we can cancel it on recalculation.
   let countdownTimer = null;
@@ -226,39 +242,54 @@
   }
 
   // ---- Airport lookup -----------------------------------------------------
-  // Resolve a 3-letter IATA or 4-letter ICAO code to an airport record.
-  // Returns { iata, icao, name, tz, lon } or null. Uses own-property checks
-  // only, so crafted input (e.g. "constructor") can't match prototype keys.
-  function resolveAirport(code) {
-    if (code.length === 3) {
-      if (Object.prototype.hasOwnProperty.call(AIRPORT_DB, code)) {
-        const a = AIRPORT_DB[code];
-        return { iata: code, icao: a.icao, name: a.name, tz: a.tz, lon: a.lon };
+  function recordFor(iata) {
+    const a = AIRPORT_DB[iata];
+    return { iata: iata, icao: a.icao, name: a.name, city: a.city, tz: a.tz, lon: a.lon };
+  }
+
+  // Resolve typed text to an airport record, or null. Tries, in order:
+  //   1. 3-letter IATA code   2. 4-letter ICAO code   3. city name
+  // City matching is exact first, then a unique prefix match. All lookups use
+  // own-property checks, so crafted input can't reach prototype keys.
+  function resolveQuery(raw) {
+    const letters = raw.replace(/[^a-zA-Z]/g, "").toUpperCase();
+    if (letters.length === 3 &&
+        Object.prototype.hasOwnProperty.call(AIRPORT_DB, letters)) {
+      return recordFor(letters);
+    }
+    if (letters.length === 4 && BY_ICAO[letters]) {
+      return recordFor(BY_ICAO[letters]);
+    }
+
+    const key = normCity(raw);
+    if (key.length >= 3) {
+      if (key in CITY_INDEX) return recordFor(CITY_INDEX[key]);
+      // Unique prefix match (e.g. "lond" -> "london"); ambiguous -> no guess.
+      let hit = null, count = 0;
+      for (const c of CITY_KEYS) {
+        if (c.startsWith(key)) { hit = c; count++; if (count > 1) break; }
       }
-    } else if (code.length === 4) {
-      const iata = BY_ICAO[code];
-      if (iata) {
-        const a = AIRPORT_DB[iata];
-        return { iata: iata, icao: a.icao, name: a.name, tz: a.tz, lon: a.lon };
-      }
+      if (count === 1) return recordFor(CITY_INDEX[hit]);
     }
     return null;
   }
 
-  // Handle typed IATA/ICAO input: sanitize, resolve, update the zone select and
+  // Handle typed code/city input: sanitize, resolve, update the zone select and
   // a descriptive label. `onResolve` receives the airport record (or null).
   function handleIataInput(inputEl, zoneSelect, labelEl, onResolve) {
-    const code = inputEl.value.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 4);
-    if (inputEl.value !== code) inputEl.value = code; // reflect sanitized value
+    // Allow letters (incl. accented), spaces and a few name punctuation marks.
+    const cleaned = inputEl.value.replace(/[^\p{L}\s.'-]/gu, "");
+    if (inputEl.value !== cleaned) inputEl.value = cleaned; // reflect sanitized
+    const raw = cleaned.trim();
 
-    if (code.length < 3) {
+    if (raw.length < 3) {
       labelEl.hidden = true;
       labelEl.classList.remove("unknown");
       if (onResolve) onResolve(null);
       return;
     }
 
-    const airport = resolveAirport(code);
+    const airport = resolveQuery(raw);
 
     if (airport) {
       zoneSelect.value = airport.tz;
@@ -273,7 +304,7 @@
       labelEl.classList.remove("unknown");
       labelEl.hidden = false;
     } else {
-      labelEl.textContent = `No airport found for “${code}”.`;
+      labelEl.textContent = `No airport or city found for “${raw}”.`;
       labelEl.classList.add("unknown");
       labelEl.hidden = false;
     }

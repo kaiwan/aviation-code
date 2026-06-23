@@ -27,11 +27,11 @@
       </div>
 
       <div class="field">
-        <label for="dep-zone">Departure time is given in <span class="hint">(type IATA/ICAO code or pick a zone)</span></label>
+        <label for="dep-zone">Departure time is given in <span class="hint">(type code/city or pick a zone)</span></label>
         <div class="zone-row">
-          <input type="text" id="dep-iata" class="iata" maxlength="4"
-                 autocapitalize="characters" spellcheck="false"
-                 placeholder="Code" aria-label="Departure airport IATA or ICAO code">
+          <input type="text" id="dep-iata" class="iata" maxlength="40"
+                 autocapitalize="words" spellcheck="false"
+                 placeholder="Code or city" aria-label="Departure airport IATA/ICAO code or city">
           <select id="dep-zone" name="dep-zone"></select>
         </div>
         <small id="dep-airport" class="airport-label" hidden></small>
@@ -46,11 +46,11 @@
       </div>
 
       <div class="field">
-        <label for="dest-zone">Show completion time in <span class="hint">(type IATA/ICAO code or pick a zone)</span></label>
+        <label for="dest-zone">Show completion time in <span class="hint">(type code/city or pick a zone)</span></label>
         <div class="zone-row">
-          <input type="text" id="dest-iata" class="iata" maxlength="4"
-                 autocapitalize="characters" spellcheck="false"
-                 placeholder="Code" aria-label="Destination airport IATA or ICAO code">
+          <input type="text" id="dest-iata" class="iata" maxlength="40"
+                 autocapitalize="words" spellcheck="false"
+                 placeholder="Code or city" aria-label="Destination airport IATA/ICAO code or city">
           <select id="dest-zone" name="dest-zone"></select>
         </div>
         <small id="dest-airport" class="airport-label" hidden></small>

@@ -92,14 +92,17 @@ code {
 }
 
 .iata {
-  flex: 0 0 5.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  text-align: center;
+  flex: 1 1 40%;
+  min-width: 6.5rem;
   font-weight: 600;
 }
 
-.zone-row select { flex: 1 1 auto; }
+.iata::placeholder {
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.zone-row select { flex: 1 1 60%; }
 
 .airport-label {
   color: var(--accent);
