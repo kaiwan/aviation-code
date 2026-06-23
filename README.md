@@ -11,8 +11,10 @@ the longitude-based solar time used in aviation).
 
 - **Departure + duration → arrival**, or just convert a single time. Duration
   accepts `hh:mm` (e.g. `2:30`) or whole minutes (e.g. `150`).
-- **IATA or ICAO airport lookup** — type a 3-letter IATA (`BOM`) or 4-letter
-  ICAO (`VABB`) code to set the timezone, or pick an IANA zone directly.
+- **Airport / city lookup** — type a 3-letter IATA (`BOM`), 4-letter ICAO
+  (`VABB`), or a **city name** (`Mumbai`, `London`, `New York`) to set the
+  timezone. A city resolves to its prime airport (e.g. London → LHR,
+  New York → JFK, Tokyo → HND). Or pick an IANA zone directly.
 - **Arrival shown in zone time, UTC, and LMT.** LMT is exact when a destination
   airport is selected (uses its longitude); otherwise it is approximated from
   the zone meridian.
