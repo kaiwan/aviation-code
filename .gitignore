@@ -1,0 +1,8 @@
+# Local Claude Code config (machine-specific, not for publishing)
+.claude/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~

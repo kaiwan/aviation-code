@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--
+    Strict Content-Security-Policy. The app is fully self-contained:
+    no inline scripts/styles, no external network calls, no eval.
+    This blocks injected/3rd-party script execution by default.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Flight Time Calculator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="card">
+    <h1>Flight Time Calculator</h1>
+    <p class="sub">Enter a departure time and (optionally) a flight duration.
+       See when the flight completes in your chosen local time.</p>
+
+    <form id="flight-form" autocomplete="off" novalidate>
+      <div class="field">
+        <label for="dep-time">Departure date &amp; time</label>
+        <input type="datetime-local" id="dep-time" name="dep-time" required>
+      </div>
+
+      <div class="field">
+        <label for="dep-zone">Departure time is given in <span class="hint">(type IATA/ICAO code or pick a zone)</span></label>
+        <div class="zone-row">
+          <input type="text" id="dep-iata" class="iata" maxlength="4"
+                 autocapitalize="characters" spellcheck="false"
+                 placeholder="Code" aria-label="Departure airport IATA or ICAO code">
+          <select id="dep-zone" name="dep-zone"></select>
+        </div>
+        <small id="dep-airport" class="airport-label" hidden></small>
+      </div>
+
+      <div class="field">
+        <label for="duration">Flight duration <span class="hint">(optional &mdash; <code>hh:mm</code> or minutes)</span></label>
+        <input type="text" id="duration" name="duration"
+               inputmode="text" maxlength="9"
+               placeholder="e.g. 2:30 or 150" aria-describedby="duration-hint">
+        <small id="duration-hint" class="hint">Leave blank to just convert the time.</small>
+      </div>
+
+      <div class="field">
+        <label for="dest-zone">Show completion time in <span class="hint">(type IATA/ICAO code or pick a zone)</span></label>
+        <div class="zone-row">
+          <input type="text" id="dest-iata" class="iata" maxlength="4"
+                 autocapitalize="characters" spellcheck="false"
+                 placeholder="Code" aria-label="Destination airport IATA or ICAO code">
+          <select id="dest-zone" name="dest-zone"></select>
+        </div>
+        <small id="dest-airport" class="airport-label" hidden></small>
+      </div>
+
+      <div class="actions">
+        <button type="submit" id="calc-btn">Calculate</button>
+        <button type="button" id="now-btn" class="secondary">Use now</button>
+      </div>
+    </form>
+
+    <p id="error" class="error" role="alert" hidden></p>
+
+    <section id="result" class="result" hidden aria-live="polite">
+      <p id="result-eta-label" class="eta-label"></p>
+      <h2 id="result-arrival" class="arrival"></h2>
+      <p id="result-dayoffset" class="dayoffset" hidden></p>
+
+      <div class="arrival-alt">
+        <div class="alt-row"><span class="alt-key">UTC</span><span id="arr-utc" class="alt-val"></span></div>
+        <div class="alt-row"><span class="alt-key">LMT</span><span id="arr-lmt" class="alt-val"></span></div>
+      </div>
+
+      <div id="countdown" class="countdown" hidden>
+        <span id="countdown-label" class="countdown-label"></span>
+        <strong id="countdown-time" class="countdown-time"></strong>
+        <div class="progress" aria-hidden="true"><div id="progress-bar" class="progress-bar"></div></div>
+      </div>
+
+      <dl class="details">
+        <dt>Departure (entered zone)</dt><dd id="r-dep-src"></dd>
+        <dt>Departure (UTC)</dt><dd id="r-dep-utc"></dd>
+        <dt>Flight duration</dt><dd id="r-duration"></dd>
+        <dt>Completion zone</dt><dd id="r-dest-zone"></dd>
+      </dl>
+    </section>
+
+    <footer class="foot">Runs entirely in your browser. No data leaves your device.</footer>
+  </main>
+
+  <script src="airports.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
