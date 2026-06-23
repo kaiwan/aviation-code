@@ -167,47 +167,69 @@
   }
 
   // ---- Parsing / validation ----------------------------------------------
-  // Returns minutes (>=0) or throws Error with a user-facing message.
+  // A validation error that knows which input field it relates to, so the UI
+  // can highlight/focus that field.
+  class FieldError extends Error {
+    constructor(message, field) { super(message); this.field = field; }
+  }
+
+  // Returns minutes (>=0) or throws FieldError with a user-facing message.
   function parseDuration(raw) {
-    const s = raw.trim();
-    if (s === "") return 0;
+    const s = (raw || "").trim();
+    if (s === "") return 0; // blank duration = time conversion only
 
     let minutes;
     if (s.indexOf(":") !== -1) {
-      const match = /^(\d{1,3}):([0-5]?\d)$/.exec(s);
+      const match = /^(\d{1,3}):([0-5]\d)$/.exec(s);
       if (!match) {
-        throw new Error("Duration must look like hh:mm (e.g. 2:30), with minutes 00–59.");
+        throw new FieldError(
+          "Duration must look like hh:mm (e.g. 2:30), with minutes 00–59.", durationEl);
       }
       minutes = Number(match[1]) * 60 + Number(match[2]);
     } else {
       if (!/^\d{1,5}$/.test(s)) {
-        throw new Error("Duration must be whole minutes (e.g. 150) or hh:mm (e.g. 2:30).");
+        throw new FieldError(
+          "Duration must be whole minutes (e.g. 150) or hh:mm (e.g. 2:30).", durationEl);
       }
       minutes = Number(s);
     }
 
     if (!Number.isFinite(minutes) || minutes < 0) {
-      throw new Error("Duration must be zero or positive.");
+      throw new FieldError("Duration must be zero or positive.", durationEl);
     }
     if (minutes > MAX_DURATION_MIN) {
-      throw new Error("Duration is too large (max 30 days).");
+      throw new FieldError("Duration is too large (max 30 days).", durationEl);
     }
     return minutes;
   }
 
   function parseDepartureField(raw) {
+    const v = (raw || "").trim();
+    if (v === "") {
+      throw new FieldError("Please enter a departure date and time.", depTimeEl);
+    }
     // datetime-local yields "YYYY-MM-DDTHH:MM" (optionally :SS). Parse strictly.
-    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/.exec(raw);
+    const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?$/.exec(v);
     if (!match) {
-      throw new Error("Please enter a valid departure date and time.");
+      throw new FieldError("Departure date/time is not valid.", depTimeEl);
     }
     const y  = Number(match[1]);
     const mo = Number(match[2]);
     const d  = Number(match[3]);
     const h  = Number(match[4]);
     const mi = Number(match[5]);
+    if (y < 1900 || y > 2200) {
+      throw new FieldError("Departure year must be between 1900 and 2200.", depTimeEl);
+    }
     if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) {
-      throw new Error("Please enter a valid departure date and time.");
+      throw new FieldError("Departure date/time is out of range.", depTimeEl);
+    }
+    // Reject dates that don't exist (e.g. Feb 30, Apr 31) by round-tripping.
+    const probe = new Date(Date.UTC(y, mo - 1, d, h, mi));
+    if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== mo - 1 ||
+        probe.getUTCDate() !== d) {
+      throw new FieldError(
+        `There is no such date (${y}-${pad2(mo)}-${pad2(d)}).`, depTimeEl);
     }
     return { y, mo, d, h, mi };
   }
@@ -403,13 +425,27 @@
   }
 
   // ---- Main calculation ---------------------------------------------------
+  function clearFieldFlags() {
+    depTimeEl.removeAttribute("aria-invalid");
+    durationEl.removeAttribute("aria-invalid");
+  }
+
   function calculate() {
     clearError();
+    clearFieldFlags();
     try {
       const dep = parseDepartureField(depTimeEl.value);
       const depZone = depZoneEl.value;
       const destZone = destZoneEl.value;
       const durationMin = parseDuration(durationEl.value);
+
+      // A zone must be selected for both source and destination.
+      if (!depZone) {
+        throw new FieldError("Please choose the departure timezone.", depZoneEl);
+      }
+      if (!destZone) {
+        throw new FieldError("Please choose the destination timezone.", destZoneEl);
+      }
 
       const depInstant = wallTimeToInstant(dep.y, dep.mo, dep.d, dep.h, dep.mi, depZone);
       if (isNaN(depInstant.getTime())) {
@@ -470,6 +506,10 @@
     } catch (err) {
       stopCountdown();
       showError(err && err.message ? err.message : "Something went wrong.");
+      if (err && err.field) {
+        err.field.setAttribute("aria-invalid", "true");
+        try { err.field.focus(); } catch (_) { /* focus is best-effort */ }
+      }
     }
   }
 
@@ -492,11 +532,21 @@
 
   // ---- Wiring -------------------------------------------------------------
   populateZones();
-  depTimeEl.value = nowAsLocalInputValue();
+  // Departure is intentionally left blank so the form starts empty; the user
+  // enters a time or clicks "Use now". (Clicking Calculate on an empty form
+  // surfaces a validation error rather than silently using the current time.)
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     calculate();
+  });
+
+  // Clear a field's invalid flag as soon as the user edits it.
+  depTimeEl.addEventListener("input", function () {
+    depTimeEl.removeAttribute("aria-invalid");
+  });
+  durationEl.addEventListener("input", function () {
+    durationEl.removeAttribute("aria-invalid");
   });
 
   nowBtn.addEventListener("click", function () {
