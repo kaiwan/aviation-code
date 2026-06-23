@@ -531,10 +531,19 @@
   }
 
   // ---- Wiring -------------------------------------------------------------
+  // Set the departure to the current local time, and the departure zone to the
+  // browser's local zone (so the local-clock value is interpreted correctly).
+  function setDepartureToNow() {
+    depTimeEl.value = nowAsLocalInputValue();
+    depTimeEl.removeAttribute("aria-invalid");
+    depZoneEl.value = browserTimeZone();
+    if (![...depZoneEl.options].some((o) => o.value === depZoneEl.value)) {
+      depZoneEl.value = "UTC";
+    }
+  }
+
   populateZones();
-  // Departure is intentionally left blank so the form starts empty; the user
-  // enters a time or clicks "Use now". (Clicking Calculate on an empty form
-  // surfaces a validation error rather than silently using the current time.)
+  setDepartureToNow(); // default the departure date/time to "now" on load
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -549,13 +558,7 @@
     durationEl.removeAttribute("aria-invalid");
   });
 
-  nowBtn.addEventListener("click", function () {
-    depTimeEl.value = nowAsLocalInputValue();
-    depZoneEl.value = browserTimeZone();
-    if (![...depZoneEl.options].some((o) => o.value === depZoneEl.value)) {
-      depZoneEl.value = "UTC";
-    }
-  });
+  nowBtn.addEventListener("click", setDepartureToNow);
 
   // IATA/ICAO quick-lookup for both zone fields.
   depIataEl.addEventListener("input", function () {
